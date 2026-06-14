@@ -1,38 +1,48 @@
-# FreeLanceFlow - Freelancer Project Management Platform
+# FreeLanceFlow
 
-A sophisticated, full-stack platform for freelancers and clients to collaborate on high-impact projects.
+FreeLanceFlow is a full-stack local demo for a freelancer project management system. It follows the final report's Chapter 5 MySQL model with seven core tables: users, projects, proposals, contracts, milestones, invoices, and payments.
 
-## Tech Stack
+## Stack
 
-- **Frontend**: React.js, Tailwind CSS, Framer Motion, Recharts
-- **Backend**: Node.js, Express.js, Socket.io
-- **Database**: Oracle SQL with TypeORM
-- **Auth**: JWT with bcrypt password hashing
+- Frontend: React, TypeScript, Vite, Tailwind CSS, React Router, Framer Motion, Recharts, lucide-react
+- Backend: Node.js, Express, TypeScript, JWT, bcryptjs, mysql2
+- Database: MySQL
 
-## Features
+## Setup
 
-- **Dynamic Dashboards**: Role-specific mission control for Clients and Freelancers.
-- **Project Marketplace**: Advanced search and filtering for open projects.
-- **Bidding System**: Real-time proposal submission and acceptance.
-- **Contract Management**: Milestone tracking and automated invoicing.
-- **Real-time Messaging**: Socket.io powered chat within contracts.
-- **Responsive Design**: Polished UI with glassmorphism and smooth animations.
+1. Install dependencies:
 
-## Getting Started
+```bash
+npm.cmd install
+```
 
-1. **Database Setup**:
-   - Ensure an Oracle Database is provisioned and running.
-   - Configure the connection string in your `.env` file based on `.env.example`.
-   - The application uses TypeORM for schema management and entities mapping.
+2. Create a MySQL database and run the SQL scripts:
 
-2. **Environment Variables**:
-   - Configure `JWT_SECRET` and `DATABASE_URL` in your environment.
-   - (Optional) Configure Cloudinary and Nodemailer for extra features.
+```sql
+SOURCE database/schema.sql;
+SOURCE database/seed.sql;
+```
 
-3. **Running the App**:
-   - Development: `npm run dev`
-   - Production: `npm run build && npm start`
+3. Configure the backend:
 
-## Schema Overview
+```bash
+copy server\.env.example server\.env
+```
 
-The platform uses a relational Oracle SQL schema including Users, Profiles, Projects, Proposals, Contracts, Milestones, and Messages. Managed cleanly with TypeORM.
+Update `server/.env` with your MySQL username/password.
+
+4. Start the app:
+
+```bash
+npm.cmd run dev
+```
+
+- Frontend: http://localhost:5173
+- Backend: http://localhost:4000
+
+## Demo Accounts
+
+- Client: `arjun@email.com` / `password123`
+- Freelancer: `priya@email.com` / `password123`
+- Admin: `admin@freelanceflow.local` / `password123`
+
