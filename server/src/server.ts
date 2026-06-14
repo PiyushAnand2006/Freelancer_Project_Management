@@ -58,13 +58,14 @@ function requireFields(body: Record<string, unknown>, fields: string[]) {
     (error as Error & { status?: number }).status = 400;
     throw error;
   }
-}
+}app.get("/", (_req, res) => {
+  res.send("<h1>FreeLanceFlow API Server</h1><p>The backend services are running successfully on this port. Please use the frontend application at <a href='http://localhost:5173'>http://localhost:5173</a> to interact with the application.</p>");
+});
 
 app.get("/api/health", asyncHandler(async (_req, res) => {
   await query<RowDataPacket[]>("SELECT 1 AS ok");
   res.json({ ok: true, service: "FreeLanceFlow API" });
 }));
-
 app.post("/api/auth/register", asyncHandler(async (req, res) => {
   const body = req.body as Record<string, string>;
   requireFields(body, ["name", "email", "password", "role"]);
