@@ -5,7 +5,8 @@ FreeLanceFlow is a modern, full-stack freelancer project management system. It p
 ## 🚀 Key Features
 
 *   **Role-Based Dashboards**: Tailored workspaces and analytics for Clients, Freelancers, and Admins.
-*   **Project Lifecycle Management**: Post projects, browse listings, submit detailed bids/proposals, and accept bids to automatically generate active contracts.
+*   **Project Lifecycle Management**: Post projects, browse listings, submit detailed bids/proposals, accept bids, and **delete projects** (which cascade-deletes proposals, contracts, milestones, invoices, and payments transactionally).
+*   **Optional & Deletable Deadlines**: Set optional deadlines when posting a project, and dynamically **clear/delete deadlines** from project cards using the inline UI.
 *   **Milestone & Progress Tracking**: Clients can define milestones, freelancers can submit progress updates, and clients can approve completed milestones.
 *   **Automated Invoicing & Payments**: Automatic invoice generation upon milestone approvals, and support for simulated payments (UPI, Card, Bank, Wallet).
 *   **JWT Authentication**: Secure user authentication with JSON Web Tokens and hashed passwords.
