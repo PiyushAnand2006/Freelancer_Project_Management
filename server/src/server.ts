@@ -196,7 +196,7 @@ app.get("/api/projects", requireAuth, asyncHandler(async (req, res) => {
 
 app.post("/api/projects", requireAuth, requireRole("client"), asyncHandler(async (req, res) => {
   const body = req.body as Record<string, string | number>;
-  requireFields(body, ["title", "budget_min", "budget_max", "deadline", "project_type"]);
+  requireFields(body, ["title", "budget_min", "budget_max", "project_type"]);
 
   const [result] = await pool.execute<ResultSetHeader>(
     `INSERT INTO projects (client_id, title, description, budget_min, budget_max, deadline, project_type, status)
@@ -207,7 +207,7 @@ app.post("/api/projects", requireAuth, requireRole("client"), asyncHandler(async
       description: body.description ?? "",
       budgetMin: body.budget_min,
       budgetMax: body.budget_max,
-      deadline: body.deadline,
+      deadline: body.deadline || null,
       projectType: body.project_type
     }
   );
@@ -236,6 +236,112 @@ app.get("/api/projects/:id", requireAuth, asyncHandler(async (req, res) => {
   );
 
   res.json({ project: projectRows[0], proposals });
+}));
+
+app.delete("/api/projects/:id", requireAuth, asyncHandler(async (req, res) => {
+  const projectId = Number(req.params.id);
+  const user = req.user!;
+
+  const [projectRows] = await pool.execute<RowDataPacket[]>(
+    "SELECT * FROM projects WHERE project_id = ?",
+    [projectId]
+  );
+  const project = projectRows[0];
+  if (!project) {
+    return res.status(404).json({ message: "Project not found" });
+  }
+
+  if (user.role !== "admin" && (user.role !== "client" || project.client_id !== user.userId)) {
+    return res.status(403).json({ message: "You are not authorized to delete this project" });
+  }
+
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+
+    await connection.execute(
+      `DELETE FROM payments 
+       WHERE invoice_id IN (
+         SELECT invoice_id FROM invoices 
+         WHERE contract_id IN (
+           SELECT contract_id FROM contracts 
+           WHERE proposal_id IN (
+             SELECT proposal_id FROM proposals WHERE project_id = ?
+           )
+         )
+       )`,
+      [projectId]
+    );
+
+    await connection.execute(
+      `DELETE FROM invoices 
+       WHERE contract_id IN (
+         SELECT contract_id FROM contracts 
+         WHERE proposal_id IN (
+           SELECT proposal_id FROM proposals WHERE project_id = ?
+         )
+       )`,
+      [projectId]
+    );
+
+    await connection.execute(
+      `DELETE FROM milestones 
+       WHERE contract_id IN (
+         SELECT contract_id FROM contracts 
+         WHERE proposal_id IN (
+           SELECT proposal_id FROM proposals WHERE project_id = ?
+         )
+       )`,
+      [projectId]
+    );
+
+    await connection.execute(
+      `DELETE FROM contracts 
+       WHERE proposal_id IN (
+         SELECT proposal_id FROM proposals WHERE project_id = ?
+       )`,
+      [projectId]
+    );
+
+    await connection.execute(
+      "DELETE FROM proposals WHERE project_id = ?",
+      [projectId]
+    );
+
+    await connection.execute(
+      "DELETE FROM projects WHERE project_id = ?",
+      [projectId]
+    );
+
+    await connection.commit();
+    res.json({ success: true, message: "Project deleted successfully" });
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}));
+
+app.delete("/api/projects/:id/deadline", requireAuth, asyncHandler(async (req, res) => {
+  const projectId = Number(req.params.id);
+  const user = req.user!;
+
+  const [projectRows] = await pool.execute<RowDataPacket[]>(
+    "SELECT * FROM projects WHERE project_id = ?",
+    [projectId]
+  );
+  const project = projectRows[0];
+  if (!project) {
+    return res.status(404).json({ message: "Project not found" });
+  }
+
+  if (user.role !== "admin" && (user.role !== "client" || project.client_id !== user.userId)) {
+    return res.status(403).json({ message: "You are not authorized to modify this project" });
+  }
+
+  await pool.execute("UPDATE projects SET deadline = NULL WHERE project_id = ?", [projectId]);
+  res.json({ success: true, message: "Project deadline deleted successfully" });
 }));
 
 app.get("/api/proposals", requireAuth, asyncHandler(async (req, res) => {

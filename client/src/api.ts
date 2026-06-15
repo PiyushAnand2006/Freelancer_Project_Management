@@ -18,7 +18,7 @@ export type Project = {
   description?: string;
   budget_min: number;
   budget_max: number;
-  deadline: string;
+  deadline: string | null;
   project_type: "fixed" | "hourly";
   status: "open" | "in_progress" | "completed";
   proposal_count: number;
@@ -99,10 +99,17 @@ export function formatMoney(value: number | string | null | undefined) {
   }).format(amount);
 }
 
-export function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric"
-  }).format(new Date(value));
+export function formatDate(value: string | null | undefined) {
+  if (!value) return "No deadline";
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return "No deadline";
+    return new Intl.DateTimeFormat("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    }).format(d);
+  } catch {
+    return "No deadline";
+  }
 }

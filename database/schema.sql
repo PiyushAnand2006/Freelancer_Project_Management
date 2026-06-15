@@ -29,7 +29,7 @@ CREATE TABLE projects (
   description TEXT,
   budget_min DECIMAL(12, 2) NOT NULL,
   budget_max DECIMAL(12, 2) NOT NULL,
-  deadline DATE NOT NULL,
+  deadline DATE NULL,
   project_type VARCHAR(20) NOT NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'open',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -19,6 +19,7 @@ import {
   Send,
   ShieldCheck,
   Sparkles,
+  Trash2,
   UserRound
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -498,7 +499,7 @@ function Projects() {
           <input className="input lg:col-span-2" name="title" placeholder="Project title" required />
           <input className="input" name="budget_min" type="number" placeholder="Min budget" required />
           <input className="input" name="budget_max" type="number" placeholder="Max budget" required />
-          <input className="input" name="deadline" type="date" required />
+          <input className="input" name="deadline" type="date" />
           <select className="input" name="project_type" defaultValue="fixed">
             <option value="fixed">Fixed</option>
             <option value="hourly">Hourly</option>
@@ -521,7 +522,33 @@ function Projects() {
 }
 
 function ProjectCard({ project, canBid, onRefresh }: { project: Project; canBid: boolean; onRefresh: () => void }) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
+  const [isConfirmingDeadlineDelete, setIsConfirmingDeadlineDelete] = useState(false);
+
+  const canDelete = user && (user.role === "admin" || (user.role === "client" && project.client_id === user.userId));
+
+  async function handleDelete() {
+    try {
+      await api.delete(`/projects/${project.project_id}`);
+      onRefresh();
+    } catch (err) {
+      console.error("Failed to delete project:", err);
+      alert("Failed to delete project. Please try again.");
+    }
+  }
+
+  async function handleDeleteDeadline() {
+    try {
+      await api.delete(`/projects/${project.project_id}/deadline`);
+      setIsConfirmingDeadlineDelete(false);
+      onRefresh();
+    } catch (err) {
+      console.error("Failed to delete project deadline:", err);
+      alert("Failed to delete project deadline. Please try again.");
+    }
+  }
 
   async function submitProposal(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -546,8 +573,31 @@ function ProjectCard({ project, canBid, onRefresh }: { project: Project; canBid:
           <p className="font-bold text-slate-950">{formatMoney(project.budget_min)} - {formatMoney(project.budget_max)}</p>
           <p className="text-slate-500">Budget</p>
         </div>
-        <div className="rounded-lg bg-slate-50 p-3">
-          <p className="font-bold text-slate-950">{formatDate(project.deadline)}</p>
+        <div className="relative rounded-lg bg-slate-50 p-3">
+          <div className="flex items-center justify-between gap-1">
+            <p className="font-bold text-slate-950">{formatDate(project.deadline)}</p>
+            {project.deadline && canDelete && (
+              isConfirmingDeadlineDelete ? (
+                <div className="flex items-center gap-1">
+                  <button onClick={handleDeleteDeadline} className="text-[10px] font-bold text-rose-600 hover:underline" title="Confirm delete deadline">
+                    Yes
+                  </button>
+                  <span className="text-[10px] text-slate-400">/</span>
+                  <button onClick={() => setIsConfirmingDeadlineDelete(false)} className="text-[10px] font-bold text-slate-500 hover:underline" title="Cancel">
+                    No
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setIsConfirmingDeadlineDelete(true)}
+                  className="rounded p-0.5 text-slate-400 hover:bg-slate-200 hover:text-rose-600 transition"
+                  title="Remove deadline"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )
+            )}
+          </div>
           <p className="text-slate-500">Deadline</p>
         </div>
       </div>
@@ -558,6 +608,28 @@ function ProjectCard({ project, canBid, onRefresh }: { project: Project; canBid:
             Bid
             <ChevronRight size={16} />
           </button>
+        )}
+        {canDelete && (
+          isConfirmingDelete ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-rose-600">Delete?</span>
+              <button onClick={handleDelete} className="rounded bg-rose-600 px-2 py-1 text-xs font-bold text-white hover:bg-rose-700 transition">
+                Confirm
+              </button>
+              <button onClick={() => setIsConfirmingDelete(false)} className="rounded bg-slate-200 px-2 py-1 text-xs font-bold text-slate-700 hover:bg-slate-300 transition">
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsConfirmingDelete(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-100 hover:text-rose-700 transition"
+              title="Delete Project"
+            >
+              <Trash2 size={14} />
+              Delete
+            </button>
+          )
         )}
       </div>
       {open && (
