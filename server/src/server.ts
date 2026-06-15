@@ -481,11 +481,31 @@ app.post("/api/contracts/:id/milestones", requireAuth, requireRole("client"), as
   requireFields(body, ["title", "amount", "due_date"]);
 
   const [contractRows] = await pool.execute<RowDataPacket[]>(
-    "SELECT client_id FROM contracts WHERE contract_id = ?",
+    "SELECT client_id, agreed_amount FROM contracts WHERE contract_id = ?",
     [req.params.id]
   );
   if (!contractRows[0]) return res.status(404).json({ message: "Contract not found" });
   if (contractRows[0].client_id !== req.user!.userId) return res.status(403).json({ message: "Not your contract" });
+
+  const agreedAmount = Number(contractRows[0].agreed_amount);
+  const newAmount = Number(body.amount);
+
+  if (isNaN(newAmount) || newAmount <= 0) {
+    return res.status(400).json({ message: "Milestone amount must be a positive number" });
+  }
+
+  // Get total allocated amount for this contract's milestones
+  const [milestoneRows] = await pool.execute<RowDataPacket[]>(
+    "SELECT COALESCE(SUM(amount), 0) as total FROM milestones WHERE contract_id = ?",
+    [req.params.id]
+  );
+  const currentTotal = Number(milestoneRows[0].total);
+
+  if (currentTotal + newAmount > agreedAmount) {
+    return res.status(400).json({
+      message: `The sum of milestone amounts (${(currentTotal + newAmount).toFixed(2)}) cannot exceed the contract agreed amount (${agreedAmount.toFixed(2)}).`
+    });
+  }
 
   const [result] = await pool.execute<ResultSetHeader>(
     `INSERT INTO milestones (contract_id, title, amount, due_date, status)
@@ -611,6 +631,10 @@ app.post("/api/payments", requireAuth, requireRole("client"), asyncHandler(async
 app.use((error: Error & { status?: number; code?: string }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (error.code === "ER_DUP_ENTRY") {
     return res.status(409).json({ message: "Duplicate record blocked by database constraint" });
+  }
+  if (error.code === "ER_SIGNAL_EXCEPTION") {
+    const sqlMessage = (error as any).sqlMessage || error.message;
+    return res.status(400).json({ message: sqlMessage });
   }
 
   const status = error.status ?? 500;

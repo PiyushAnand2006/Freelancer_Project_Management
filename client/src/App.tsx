@@ -475,10 +475,16 @@ function Projects() {
 
   async function createProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    await api.post("/projects", Object.fromEntries(form));
-    event.currentTarget.reset();
-    setRefresh((value) => value + 1);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    try {
+      await api.post("/projects", Object.fromEntries(form));
+      formElement.reset();
+      setRefresh((value) => value + 1);
+    } catch (err: any) {
+      console.error("Failed to post project:", err);
+      alert(err.response?.data?.message || "Failed to post project.");
+    }
   }
 
   return (
@@ -756,6 +762,9 @@ function ContractDetail() {
     });
   }, [id, refresh]);
 
+  const allocatedAmount = milestones.reduce((sum, m) => sum + Number(m.amount), 0);
+  const remainingAmount = contract ? Math.max(0, Number(contract.agreed_amount) - allocatedAmount) : 0;
+
   async function updateMilestone(milestoneId: number, status: string) {
     await api.patch(`/milestones/${milestoneId}/status`, { status });
     setRefresh((value) => value + 1);
@@ -763,15 +772,26 @@ function ContractDetail() {
 
   async function createMilestone(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    await api.post(`/contracts/${id}/milestones`, Object.fromEntries(form));
-    event.currentTarget.reset();
-    setRefresh((value) => value + 1);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    try {
+      await api.post(`/contracts/${id}/milestones`, Object.fromEntries(form));
+      formElement.reset();
+      setRefresh((value) => value + 1);
+    } catch (err: any) {
+      console.error("Failed to add milestone:", err);
+      alert(err.response?.data?.message || "Failed to add milestone.");
+    }
   }
 
   async function generateInvoice() {
-    await api.post("/invoices/generate", { contract_id: Number(id) });
-    setRefresh((value) => value + 1);
+    try {
+      await api.post("/invoices/generate", { contract_id: Number(id) });
+      setRefresh((value) => value + 1);
+    } catch (err: any) {
+      console.error("Failed to generate invoice:", err);
+      alert(err.response?.data?.message || "Failed to generate invoice. Please make sure there is at least one approved milestone first.");
+    }
   }
 
   if (!contract) {
@@ -835,11 +855,25 @@ function ContractDetail() {
         <aside className="space-y-6">
           {user?.role === "client" && (
             <form onSubmit={createMilestone} className="panel space-y-3 p-5">
-              <h3 className="section-title">Add milestone</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="section-title">Add milestone</h3>
+                <span className="text-xs font-bold px-2 py-1 rounded bg-slate-100 text-slate-700">
+                  Remaining: {formatMoney(remainingAmount)}
+                </span>
+              </div>
               <input className="input" name="title" placeholder="Milestone title" required />
-              <input className="input" name="amount" type="number" placeholder="Amount" required />
-              <input className="input" name="due_date" type="date" required />
-              <button className="btn-primary w-full">
+              <input
+                className="input"
+                name="amount"
+                type="number"
+                min="1"
+                max={remainingAmount}
+                placeholder={remainingAmount > 0 ? `Amount (Max: ${formatMoney(remainingAmount)})` : "No remaining budget"}
+                required
+                disabled={remainingAmount <= 0}
+              />
+              <input className="input" name="due_date" type="date" required disabled={remainingAmount <= 0} />
+              <button className="btn-primary w-full" disabled={remainingAmount <= 0}>
                 <Plus size={16} />
                 Add milestone
               </button>

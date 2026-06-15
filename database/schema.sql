@@ -165,8 +165,19 @@ END$$
 CREATE PROCEDURE sp_generate_invoice(IN p_contract_id INT)
 BEGIN
   DECLARE v_total DECIMAL(12, 2);
+  DECLARE v_already_invoiced DECIMAL(12, 2);
+  DECLARE v_agreed_amount DECIMAL(12, 2);
   DECLARE v_freelancer INT;
   DECLARE v_client INT;
+
+  SELECT freelancer_id, client_id, agreed_amount
+  INTO v_freelancer, v_client, v_agreed_amount
+  FROM contracts
+  WHERE contract_id = p_contract_id;
+
+  IF v_freelancer IS NULL THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Contract not found';
+  END IF;
 
   SELECT COALESCE(SUM(amount), 0)
   INTO v_total
@@ -174,17 +185,23 @@ BEGIN
   WHERE contract_id = p_contract_id
     AND status = 'approved';
 
-  IF v_total <= 0 THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No approved milestones available for invoicing';
-  END IF;
-
-  SELECT freelancer_id, client_id
-  INTO v_freelancer, v_client
-  FROM contracts
+  SELECT COALESCE(SUM(total_amount), 0)
+  INTO v_already_invoiced
+  FROM invoices
   WHERE contract_id = p_contract_id;
 
-  IF v_freelancer IS NULL THEN
-    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Contract not found';
+  SET v_total = v_total - v_already_invoiced;
+
+  IF (v_already_invoiced + v_total) > v_agreed_amount THEN
+    SET v_total = v_agreed_amount - v_already_invoiced;
+  END IF;
+
+  IF v_total <= 0 THEN
+    IF v_already_invoiced >= v_agreed_amount THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Contract has already been fully invoiced';
+    ELSE
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'No newly approved milestones available for invoicing';
+    END IF;
   END IF;
 
   INSERT INTO invoices (contract_id, freelancer_id, client_id, total_amount, status, due_date)
